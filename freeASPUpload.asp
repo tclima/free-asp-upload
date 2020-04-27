@@ -47,17 +47,17 @@ Class FreeASPUpload
 		Files = UploadedFiles.Items
 	End Property
 
-    Public Property Get Exists(sIndex)
-            Exists = false
-            If FormElements.Exists(LCase(sIndex)) Then Exists = true
-    End Property
+	Public Property Get Exists(sIndex)
+			Exists = false
+			If FormElements.Exists(LCase(sIndex)) Then Exists = true
+	End Property
 
-    Public Property Get FileExists(sIndex)
-        FileExists = false
-            if UploadedFiles.Exists(LCase(sIndex)) then FileExists = true
-    End Property
+	Public Property Get FileExists(sIndex)
+		FileExists = false
+			if UploadedFiles.Exists(LCase(sIndex)) then FileExists = true
+	End Property
 
-    Public Property Get chunkSize()
+	Public Property Get chunkSize()
 		chunkSize = internalChunkSize
 	End Property
 
@@ -90,7 +90,7 @@ Class FreeASPUpload
 	public sub SaveOne(path, num, byref outFileName, byref outLocalFileName)
 		Dim streamFile, fileItems, fileItem, fs
 
-        set fs = Server.CreateObject("Scripting.FileSystemObject")
+		set fs = Server.CreateObject("Scripting.FileSystemObject")
 		if Right(path, 1) <> "\" then path = path & "\"
 
 		if not uploadedYet then Upload
@@ -201,27 +201,30 @@ Class FreeASPUpload
 
 				nCurPos = SkipToken(tFilename, nCurPos)
 				auxStr = ExtractField(tDoubleQuotes, nCurPos)
-                ' We are interested only in the name of the file, not the whole path
-                ' Path separator is \ in windows, / in UNIX
-                ' While IE seems to put the whole pathname in the stream, Mozilla seem to
-                ' only put the actual file name, so UNIX paths may be rare. But not impossible.
-                osPathSep = "\"
-                if InStr(auxStr, osPathSep) = 0 then osPathSep = "/"
+				' We are interested only in the name of the file, not the whole path
+				' Path separator is \ in windows, / in UNIX
+				' While IE seems to put the whole pathname in the stream, Mozilla seem to
+				' only put the actual file name, so UNIX paths may be rare. But not impossible.
+				osPathSep = "\"
+				if InStr(auxStr, osPathSep) = 0 then osPathSep = "/"
 				oUploadFile.FileName = Right(auxStr, Len(auxStr)-InStrRev(auxStr, osPathSep))
 
 				if (Len(oUploadFile.FileName) > 0) then 'File field not left empty
 					nCurPos = SkipToken(tContentType, nCurPos)
 
-                    auxStr = ExtractField(tNewLine, nCurPos)
-                    ' NN on UNIX puts things like this in the stream:
-                    '    ?? python py type=?? python application/x-python
+					auxStr = ExtractField(tNewLine, nCurPos)
+					' NN on UNIX puts things like this in the stream:
+					'    ?? python py type=?? python application/x-python
 					oUploadFile.ContentType = Right(auxStr, Len(auxStr)-InStrRev(auxStr, " "))
 					nCurPos = FindToken(tNewLine, nCurPos) + 4 'skip empty line
 
 					oUploadFile.Start = nCurPos+1
 					oUploadFile.Length = FindToken(vDataSep, nCurPos) - 2 - nCurPos
 
-					If oUploadFile.Length > 0 Then UploadedFiles.Add LCase(sFieldName), oUploadFile
+					If oUploadFile.Length > 0 Then
+						'sFieldName is the name of input[type=file], to push it in the Collection, the "key" must have unique, so append nCurPos
+						Call UploadedFiles.Add(LCase(sFieldName) & "_" & nCurPos, oUploadFile)
+					End If
 				End If
 			Else
 				Dim nEndOfData, fieldValueUniStr
@@ -231,8 +234,8 @@ Class FreeASPUpload
 				If Not FormElements.Exists(LCase(sFieldName)) Then
 					FormElements.Add LCase(sFieldName), fieldValueuniStr
 				else
-                    FormElements.Item(LCase(sFieldName))= FormElements.Item(LCase(sFieldName)) & ", " & fieldValueuniStr
-                end if
+					FormElements.Item(LCase(sFieldName))= FormElements.Item(LCase(sFieldName)) & ", " & fieldValueuniStr
+				end if
 
 			End If
 
@@ -275,30 +278,30 @@ Class FreeASPUpload
 	Private Function ConvertUtf8BytesToString(start, length)
 		StreamRequest.Position = 0
 
-	    Dim objStream
-	    Dim strTmp
+		Dim objStream
+		Dim strTmp
 
-	    ' init stream
-	    Set objStream = Server.CreateObject("ADODB.Stream")
-	    objStream.Charset = "utf-8"
-	    objStream.Mode = adModeReadWrite
-	    objStream.Type = adTypeBinary
-	    objStream.Open
+		' init stream
+		Set objStream = Server.CreateObject("ADODB.Stream")
+		objStream.Charset = "utf-8"
+		objStream.Mode = adModeReadWrite
+		objStream.Type = adTypeBinary
+		objStream.Open
 
-	    ' write bytes into stream
-	    StreamRequest.Position = start+1
-	    StreamRequest.CopyTo objStream, length
-	    objStream.Flush
+		' write bytes into stream
+		StreamRequest.Position = start+1
+		StreamRequest.CopyTo objStream, length
+		objStream.Flush
 
-	    ' rewind stream and read text
-	    objStream.Position = 0
-	    objStream.Type = adTypeText
-	    strTmp = objStream.ReadText
+		' rewind stream and read text
+		objStream.Position = 0
+		objStream.Type = adTypeText
+		strTmp = objStream.ReadText
 
-	    ' close up and return
-	    objStream.Close
-	    Set objStream = Nothing
-	    ConvertUtf8BytesToString = strTmp
+		' close up and return
+		objStream.Close
+		Set objStream = Nothing
+		ConvertUtf8BytesToString = strTmp
 	End Function
 End Class
 
@@ -309,53 +312,53 @@ Class UploadedFile
 	Public Path
 	Private nameOfFile
 
-    ' Need to remove characters that are valid in UNIX, but not in Windows
-    Public Property Let FileName(fN)
-        nameOfFile = fN
-        nameOfFile = SubstNoReg(nameOfFile, "\", "_")
-        nameOfFile = SubstNoReg(nameOfFile, "/", "_")
-        nameOfFile = SubstNoReg(nameOfFile, ":", "_")
-        nameOfFile = SubstNoReg(nameOfFile, "*", "_")
-        nameOfFile = SubstNoReg(nameOfFile, "?", "_")
-        nameOfFile = SubstNoReg(nameOfFile, """", "_")
-        nameOfFile = SubstNoReg(nameOfFile, "<", "_")
-        nameOfFile = SubstNoReg(nameOfFile, ">", "_")
-        nameOfFile = SubstNoReg(nameOfFile, "|", "_")
-    End Property
+	' Need to remove characters that are valid in UNIX, but not in Windows
+	Public Property Let FileName(fN)
+		nameOfFile = fN
+		nameOfFile = SubstNoReg(nameOfFile, "\", "_")
+		nameOfFile = SubstNoReg(nameOfFile, "/", "_")
+		nameOfFile = SubstNoReg(nameOfFile, ":", "_")
+		nameOfFile = SubstNoReg(nameOfFile, "*", "_")
+		nameOfFile = SubstNoReg(nameOfFile, "?", "_")
+		nameOfFile = SubstNoReg(nameOfFile, """", "_")
+		nameOfFile = SubstNoReg(nameOfFile, "<", "_")
+		nameOfFile = SubstNoReg(nameOfFile, ">", "_")
+		nameOfFile = SubstNoReg(nameOfFile, "|", "_")
+	End Property
 
-    Public Property Get FileName()
-        FileName = nameOfFile
-    End Property
+	Public Property Get FileName()
+		FileName = nameOfFile
+	End Property
 
-    'Public Property Get FileN()ame
+	'Public Property Get FileN()ame
 End Class
 
 
 ' Does not depend on RegEx, which is not available on older VBScript
 ' Is not recursive, which means it will not run out of stack space
 Function SubstNoReg(initialStr, oldStr, newStr)
-    Dim currentPos, oldStrPos, skip
-    If IsNull(initialStr) Or Len(initialStr) = 0 Then
-        SubstNoReg = ""
-    ElseIf IsNull(oldStr) Or Len(oldStr) = 0 Then
-        SubstNoReg = initialStr
-    Else
-        If IsNull(newStr) Then newStr = ""
-        currentPos = 1
-        oldStrPos = 0
-        SubstNoReg = ""
-        skip = Len(oldStr)
-        Do While currentPos <= Len(initialStr)
-            oldStrPos = InStr(currentPos, initialStr, oldStr)
-            If oldStrPos = 0 Then
-                SubstNoReg = SubstNoReg & Mid(initialStr, currentPos, Len(initialStr) - currentPos + 1)
-                currentPos = Len(initialStr) + 1
-            Else
-                SubstNoReg = SubstNoReg & Mid(initialStr, currentPos, oldStrPos - currentPos) & newStr
-                currentPos = oldStrPos + skip
-            End If
-        Loop
-    End If
+	Dim currentPos, oldStrPos, skip
+	If IsNull(initialStr) Or Len(initialStr) = 0 Then
+		SubstNoReg = ""
+	ElseIf IsNull(oldStr) Or Len(oldStr) = 0 Then
+		SubstNoReg = initialStr
+	Else
+		If IsNull(newStr) Then newStr = ""
+		currentPos = 1
+		oldStrPos = 0
+		SubstNoReg = ""
+		skip = Len(oldStr)
+		Do While currentPos <= Len(initialStr)
+			oldStrPos = InStr(currentPos, initialStr, oldStr)
+			If oldStrPos = 0 Then
+				SubstNoReg = SubstNoReg & Mid(initialStr, currentPos, Len(initialStr) - currentPos + 1)
+				currentPos = Len(initialStr) + 1
+			Else
+				SubstNoReg = SubstNoReg & Mid(initialStr, currentPos, oldStrPos - currentPos) & newStr
+				currentPos = oldStrPos + skip
+			End If
+		Loop
+	End If
 End Function
 
 Function GetFileName(strSaveToPath, FileName)
@@ -364,29 +367,29 @@ Function GetFileName(strSaveToPath, FileName)
 'It keeps going until it returns a filename that does not exist.
 'You could just create a filename from the ID field but that means writing the record - and it still might exist!
 'N.B. Requires strSaveToPath variable to be available - and containing the path to save to
-    Dim Counter
-    Dim Flag
-    Dim strTempFileName
-    Dim FileExt
-    Dim NewFullPath
-    dim objFSO, p
-    Set objFSO = CreateObject("Scripting.FileSystemObject")
-    Counter = 0
-    p = instrrev(FileName, ".")
-    FileExt = mid(FileName, p+1)
-    strTempFileName = left(FileName, p-1)
-    NewFullPath = strSaveToPath & "\" & FileName
-    Flag = False
+	Dim Counter
+	Dim Flag
+	Dim strTempFileName
+	Dim FileExt
+	Dim NewFullPath
+	dim objFSO, p
+	Set objFSO = CreateObject("Scripting.FileSystemObject")
+	Counter = 0
+	p = instrrev(FileName, ".")
+	FileExt = mid(FileName, p+1)
+	strTempFileName = left(FileName, p-1)
+	NewFullPath = strSaveToPath & "\" & FileName
+	Flag = False
 
-    Do Until Flag = True
-        If objFSO.FileExists(NewFullPath) = False Then
-            Flag = True
-            GetFileName = Mid(NewFullPath, InstrRev(NewFullPath, "\") + 1)
-        Else
-            Counter = Counter + 1
-            NewFullPath = strSaveToPath & "\" & strTempFileName & Counter & "." & FileExt
-        End If
-    Loop
+	Do Until Flag = True
+		If objFSO.FileExists(NewFullPath) = False Then
+			Flag = True
+			GetFileName = Mid(NewFullPath, InstrRev(NewFullPath, "\") + 1)
+		Else
+			Counter = Counter + 1
+			NewFullPath = strSaveToPath & "\" & strTempFileName & Counter & "." & FileExt
+		End If
+	Loop
 End Function
 
 %>
